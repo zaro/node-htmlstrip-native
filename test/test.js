@@ -3,7 +3,7 @@ var hs = require('../')
 var strings = [
 '<a href="#"> linky link </a>',
 '							<p><strong>Somebody  around<br />',
-'&Aacute; &Auml; =	Ä ; &Auml	 = Ä;',
+'&Aacute; &Auml; =	Ä | &Auml	 = Ä| &Aumlngstr&oumlm',
 ]
 
 for(var i in strings){

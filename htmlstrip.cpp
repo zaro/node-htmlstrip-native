@@ -222,11 +222,12 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 								continue;
 							}break;
 							default:{
-								char str[32];
+								// Longest HTML entity is 32 chars
+								char str[34];
 								size_t ns = i+1;
 								int k;
 								str[0] = 0;
-								for(k=0; ns < numInChars && isalpha(inBuf[ns]) && (k < 30); ++k){
+								for(k=0; ns < numInChars && isalpha(inBuf[ns]) && (k < 32); ++k){
 									str[k] = static_cast<char>(inBuf[ns++]);
 								}
 								if(k>0){
@@ -238,6 +239,17 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 										str[k] = 0;
 									}
 									const struct entity *e = EntityLookup::lookup_entity(str,k);
+									if(e){
+										*outBuf++ = e->code;
+										i = ns-1;
+										continue;
+									}
+									// now try for all combinations, that don't end with ;
+									for(int l=k-1; l>=2 && !e; --l){
+										--ns;
+										str[l] = 0;
+										e = EntityLookup::lookup_entity(str,l);
+									}
 									if(e){
 										*outBuf++ = e->code;
 										i = ns-1;

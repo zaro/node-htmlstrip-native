@@ -1,6 +1,7 @@
 #include <node.h>
 #include "v8.h"
 
+#include <string.h>
 #include "entities.hpp"
 #include <stdlib.h>
 #include <ctype.h>

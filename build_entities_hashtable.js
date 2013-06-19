@@ -18,16 +18,19 @@ var gperfFile = [
 '%define lookup-function-name lookup_entity',
 '%define class-name EntityLookup',
 '%define initializer-suffix ,0',
+'%switch=1',
 '%%',
 ];
 
 for(var i in entities){
 	gperfFile.push(i+','+entities[i].charCodeAt(0));
+	console.log(i);
 }
 
 gperfFile = gperfFile.join('\n');
 
-console.log(gperfFile);
+
+//console.log(gperfFile);
 
 var gperf  = spawn('gperf', ['-t','--output-file','entities.hpp']);
 

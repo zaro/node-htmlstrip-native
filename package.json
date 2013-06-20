@@ -1,9 +1,9 @@
 {
 	"name" : "htmlstrip-native",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"description" : "Strip html tags with easy and efficiency",
 	"author" : "Svetlozar Argirov <zarrro@gmail.com>",
-	"keywords" : [ "html", "strip", "tag" ],
+	"keywords" : [ "html", "strip", "tag" ,"entities"],
 	"main" : "index.js",
   "repository": {
     "type": "git",

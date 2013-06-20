@@ -3,6 +3,9 @@
 
 #include <string.h>
 #include "entities.hpp"
+#include "acc_translit.hpp"
+
+
 #include <stdlib.h>
 #include <ctype.h>
 
@@ -65,6 +68,101 @@ static Persistent<String> compact_whitespace_sym;
 
 #define APPEND_WS_COMPACT(b) if(*(b-1) != ' ') { *b++ = ' '; };
 
+// convert a html entity
+// inBuf - input buffer
+// i - position in input buffer, should point at the '&'
+// outBuf - output buffer where to place the entity character
+// return true on successfull conversion, false on no match
+static inline bool
+decode_html_entity(uint16_t* inBuf, size_t &i,const size_t numInChars, uint16_t* &outBuf){
+	switch(inBuf[i+1]){
+		case '\x09': break;
+		case '\x0a': break;
+		case '\x0c': break;
+		case '\x20': break;
+		case '\x3c': break;
+		case '\x26': break;
+		case '#':{
+			size_t j = i+2;
+			bool base16 = false;
+			if(tolower(inBuf[j]) == 'x'){
+				base16 = true;
+				++j;
+			}
+			size_t ns = j;
+			char str[32];
+			int k = 0;
+			str[0] = 0;
+			for(k=0; ns < numInChars && (k < 30); ++k){
+				uint16_t c = tolower(inBuf[ns]);
+				if(c >= '0' && c <= '9'){
+					str[k] = (char)inBuf[ns++];
+					continue;
+				}
+				if(base16 && c >= 'a' && c <= 'f'){
+					str[k] = (char)inBuf[ns++];
+					continue;
+				}
+				break;
+			}
+			if(k==0){
+				// parse error
+				return false;
+			}
+			str[k] = 0;
+			uint16_t code = static_cast<uint16_t>(strtoll(str,NULL,base16?16:10));
+			*outBuf++ = code;
+			i = ns;
+			return true;
+		}break;
+		default:{
+			// Longest HTML entity is 32 chars
+			char str[34];
+			size_t ns = i+1;
+			int k;
+			str[0] = 0;
+			for(k=0; ns < numInChars && isalnum(inBuf[ns]) && (k < 32); ++k){
+				str[k] = static_cast<char>(inBuf[ns++]);
+			}
+			if(k>0){
+				// lookup entity here
+				if(inBuf[ns] == ';'){
+					str[k] = inBuf[ns++];
+					str[++k] = 0;
+				} else {
+					str[k] = 0;
+				}
+				const struct entity *e = EntityLookup::lookup_entity(str,k);
+				if(e){
+					*outBuf++ = e->code[0];
+					if(e->code[1]){
+						*outBuf++ = e->code[1];
+					}
+					i = ns-1;
+					return true;
+				}
+				// now try for all combinations, that don't end with ;
+				for(int l=k-1; l>=2 && !e; --l){
+					--ns;
+					str[l] = 0;
+					e = EntityLookup::lookup_entity(str,l);
+				}
+				if(e){
+					*outBuf++ = e->code[0];
+					if(e->code[1]){
+						*outBuf++ = e->code[1];
+					}
+					i = ns-1;
+					return true;
+				}
+			}
+			// parse error
+			return false;
+		}break;
+	}
+	return false;
+}
+
 Handle<Value> HtmlStrip(const Arguments& args) {
     HandleScope scope;
 
@@ -119,7 +217,7 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 		// Baby take off your tags , real fast :)
 		size_t numInChars = inBufSize/2;
 		int state = IN_TEXT;
-		int tagType;
+		int tagType = TAG_ANY;
 		for(size_t i=0; i<numInChars; ++i){
 			switch(inBuf[i]){
 				case '<':
@@ -178,91 +276,8 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 				case '&':
 					if( (state == IN_TEXT || state == IN_SCRIPT) && (i+2)<numInChars){
 						// Handle unicode character code
-						switch(inBuf[i+1]){
-							case '\x09': break;
-							case '\x0a': break;
-							case '\x0c': break;
-							case '\x20': break;
-							case '\x3c': break;
-							case '\x26': break;
-							case '#':{
-								size_t j = i+2;
-								bool base16 = false;
-								if(tolower(inBuf[j]) == 'x'){
-									base16 = true;
-									++j;
-								}
-								size_t ns = j;
-								char str[32];
-								int k = 0;
-								str[0] = 0;
-								for(k=0; ns < numInChars && (k < 30); ++k){
-									uint16_t c = tolower(inBuf[ns]);
-									if(c >= '0' && c <= '9'){
-										str[k] = (char)inBuf[ns++];
-										continue;
-									}
-									if(base16 && c >= 'a' && c <= 'f'){
-										str[k] = (char)inBuf[ns++];
-										continue;
-									}
-									break;
-								}
-								if(k==0){
-									// parse error, copy what we have so far to the out buf
-									while(i<ns){
-										*outBuf++ = inBuf[i++];
-									}
-									continue;
-								}
-								str[k] = 0;
-								uint16_t code = static_cast<uint16_t>(strtoll(str,NULL,base16?16:10));
-								*outBuf++ = code;
-								i = ns;
-								continue;
-							}break;
-							default:{
-								// Longest HTML entity is 32 chars
-								char str[34];
-								size_t ns = i+1;
-								int k;
-								str[0] = 0;
-								for(k=0; ns < numInChars && isalpha(inBuf[ns]) && (k < 32); ++k){
-									str[k] = static_cast<char>(inBuf[ns++]);
-								}
-								if(k>0){
-									// lookup entity here
-									if(inBuf[ns] == ';'){
-										str[k] = inBuf[ns++];
-										str[++k] = 0;
-									} else {
-										str[k] = 0;
-									}
-									const struct entity *e = EntityLookup::lookup_entity(str,k);
-									if(e){
-										*outBuf++ = e->code;
-										i = ns-1;
-										continue;
-									}
-									// now try for all combinations, that don't end with ;
-									for(int l=k-1; l>=2 && !e; --l){
-										--ns;
-										str[l] = 0;
-										e = EntityLookup::lookup_entity(str,l);
-									}
-									if(e){
-										*outBuf++ = e->code;
-										i = ns-1;
-										continue;
-									}
-								}
-								// parse error, copy what we have so far to the out buf
-								while(i<ns){
-									*outBuf++ = inBuf[i++];
-								}
-								--i;
-								continue;
-							}break;
+						if(decode_html_entity(inBuf,i,numInChars,outBuf)){
+							continue;
 						}
 					}break;
 				// handle whitespace as defined in \s :
@@ -324,6 +339,158 @@ Handle<Value> HtmlStrip(const Arguments& args) {
     return scope.Close(outBuffer);
 }
 
+Handle<Value> HtmlEntitiesDecode(const Arguments& args) {
+    HandleScope scope;
+
+		uint16_t* inBuf = NULL;
+		size_t inBufSize = 0;
+    if (args.Length() >= 2) {
+			inBuf = static_cast<uint16_t*>(  // NULL on flush.
+	        args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
+			inBufSize = args[1]->Uint32Value();
+    }
+		
+		if(!inBuf){
+			return ThrowException(
+            Exception::TypeError(
+							String::New("ConvertHtmlEntities: Arguments must be a UTF-16 encoded Buffer, and length"))
+        );
+		}
+		
+		// Create output buffer
+	  Local<Object> global = v8::Context::GetCurrent()->Global();
+	  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
+	  assert(bv->IsFunction());
+	  Local<Function> b = Local<Function>::Cast(bv);
+
+	  Local<Value> argv[1] = { Number::New(double(inBufSize)) };
+	  Local<Object> outBuffer = b->NewInstance(1, argv);
+
+		
+		uint16_t* outBuf = static_cast<uint16_t*>(
+			outBuffer->GetIndexedPropertiesExternalArrayData());
+
+		size_t numInChars = inBufSize/2;
+		for(size_t i=0; i<numInChars; ++i){
+			switch(inBuf[i]){
+				case '&':
+					if(decode_html_entity(inBuf,i,numInChars,outBuf)){
+						continue;
+					}
+					break;
+				default: break;
+			}
+			*outBuf++ = inBuf[i];
+		}
+		// Set the number of characters written
+		outBuffer->Set(chars_written_sym, 
+			Integer::New(outBuf - static_cast<uint16_t*>(
+				outBuffer->GetIndexedPropertiesExternalArrayData()))
+		);
+    return scope.Close(outBuffer);
+}
+
+// Covert accenteds char to its ascii representation,
+// this may produce longer output string, than the output
+Handle<Value> AccentedCharsNormalize(const Arguments& args) {
+    HandleScope scope;
+
+		uint16_t* inBuf = NULL;
+		size_t inBufSize = 0;
+    if (args.Length() >= 2) {
+			inBuf = static_cast<uint16_t*>(  // NULL on flush.
+	        args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
+			inBufSize = args[1]->Uint32Value();
+    }
+		
+		if(!inBuf){
+			return ThrowException(
+            Exception::TypeError(
+							String::New("AccentedCharsNormalize: Arguments must be a UTF-16 encoded Buffer, and length"))
+        );
+		}
+		
+		// Create output buffer
+	  Local<Object> global = v8::Context::GetCurrent()->Global();
+	  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
+	  assert(bv->IsFunction());
+	  Local<Function> b = Local<Function>::Cast(bv);
+
+		// Allocate double size buffer , as in the worst case output string will be double legnth
+	  Local<Value> argv[1] = { Number::New(double(inBufSize * 2)) };
+	  Local<Object> outBuffer = b->NewInstance(1, argv);
+
+		
+		uint16_t* outBuf = static_cast<uint16_t*>(
+			outBuffer->GetIndexedPropertiesExternalArrayData());
+
+		size_t numInChars = inBufSize/2;
+		for(size_t i=0; i<numInChars; ++i){
+			if(transliterate_accented_norm(inBuf, i, outBuf)){
+				continue;
+			}
+			*outBuf++ = inBuf[i];
+		}
+		// Set the number of characters written
+		outBuffer->Set(chars_written_sym, 
+			Integer::New(outBuf - static_cast<uint16_t*>(
+				outBuffer->GetIndexedPropertiesExternalArrayData()))
+		);
+    return scope.Close(outBuffer);
+}
+
+// remove accents from accented chars
+// this may produce longer output string, than the output
+Handle<Value> AccentedCharsStrip(const Arguments& args) {
+    HandleScope scope;
+
+		uint16_t* inBuf = NULL;
+		size_t inBufSize = 0;
+    if (args.Length() >= 2) {
+			inBuf = static_cast<uint16_t*>(  // NULL on flush.
+	        args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
+			inBufSize = args[1]->Uint32Value();
+    }
+		
+		if(!inBuf){
+			return ThrowException(
+            Exception::TypeError(
+							String::New("AccentedCharsNormalize: Arguments must be a UTF-16 encoded Buffer, and length"))
+        );
+		}
+		
+		// Create output buffer
+	  Local<Object> global = v8::Context::GetCurrent()->Global();
+	  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
+	  assert(bv->IsFunction());
+	  Local<Function> b = Local<Function>::Cast(bv);
+
+		// Allocate double size buffer , as in the worst case output string will be double legnth
+	  Local<Value> argv[1] = { Number::New(double(inBufSize * 2)) };
+	  Local<Object> outBuffer = b->NewInstance(1, argv);
+
+		
+		uint16_t* outBuf = static_cast<uint16_t*>(
+			outBuffer->GetIndexedPropertiesExternalArrayData());
+
+		size_t numInChars = inBufSize/2;
+		for(size_t i=0; i<numInChars; ++i){
+			if(transliterate_accented_strip(inBuf, i, outBuf)){
+				continue;
+			}
+			*outBuf++ = inBuf[i];
+		}
+		// Set the number of characters written
+		outBuffer->Set(chars_written_sym, 
+			Integer::New(outBuf - static_cast<uint16_t*>(
+				outBuffer->GetIndexedPropertiesExternalArrayData()))
+		);
+    return scope.Close(outBuffer);
+}
+
+
+
+
 void RegisterModule(Handle<Object> target) {
   chars_written_sym = NODE_PSYMBOL("_charsWritten");
 	include_script_sym = NODE_PSYMBOL("include_script");
@@ -332,6 +499,15 @@ void RegisterModule(Handle<Object> target) {
 	
   target->Set(String::NewSymbol("html_strip"),
       FunctionTemplate::New(HtmlStrip)->GetFunction());
+
+	target->Set(String::NewSymbol("html_entities_decode"),
+      FunctionTemplate::New(HtmlEntitiesDecode)->GetFunction());
+
+	target->Set(String::NewSymbol("accented_chars_norm"),
+      FunctionTemplate::New(AccentedCharsNormalize)->GetFunction());
+
+	target->Set(String::NewSymbol("accented_chars_strip"),
+      FunctionTemplate::New(AccentedCharsStrip)->GetFunction());
 }
 
 NODE_MODULE(htmlstrip, RegisterModule);

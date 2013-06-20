@@ -1,4 +1,5 @@
-#Simple HTML stripping library
+#Simple HTML tags stripping library
+
 
 ## Install
 
@@ -16,7 +17,7 @@ from source:
 
 Example:
 
-    var html_strip = require('htmlstrip-native').html_strip
+    var html_strip = require('htmlstrip-native');
     
     var html = '<style>b {color: red;}</style>' +
 							 ' Yey, <b> No more, tags</b>' +
@@ -27,10 +28,13 @@ Example:
 			compact_whitespace : true
 		};
 		
-    var text = html_strip(html,options);
+		// Strip tags and decode HTML entities
+    var text = html_strip.html_strip(html,options);
     
     console.log(text)
 		
+		// Decode HTML entities only
+		var no_entities = html_strip.html_entities_decode('Hello &smile;')
 
 The html_strip function expects either a string as first argument or a 'utf-16le',
 encoded Buffer. The optional second argument can hold the following options:
@@ -40,6 +44,8 @@ encoded Buffer. The optional second argument can hold the following options:
 			include_style : true, // include the content of <style> tags
 			compact_whitespace : false // compact consecutive '\s' whitespace into single char
 		}
+
+
 		
 ## Speed
 

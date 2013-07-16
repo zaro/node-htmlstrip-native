@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#include <vector>
+
 using namespace v8;
 
 enum states {
@@ -23,13 +25,22 @@ enum tagtype {
 	TAG_ANY,
 	TAG_SCRIPT_START,
 	TAG_STYLE_START,
-	TAG_COMMENT
+	TAG_COMMENT,
+	TAG_HINT_END
 };
 
 static Persistent<String> chars_written_sym;
 static Persistent<String> include_script_sym;
 static Persistent<String> include_style_sym;
 static Persistent<String> compact_whitespace_sym;
+
+static Persistent<String> taghints_sym;
+static Persistent<String> taghints_pos_sym;
+static Persistent<String> taghints_type_sym;
+static Persistent<String> taghints_type_script_sym;
+static Persistent<String> taghints_type_style_sym;
+static Persistent<String> taghints_type_any_sym;
+static Persistent<String> taghints_type_end_sym;
 
 
 #define IS_SCRIPT_OPEN(inBuf,i,numInChars) \
@@ -163,6 +174,12 @@ decode_html_entity(uint16_t* inBuf, size_t &i,const size_t numInChars, uint16_t*
 	return false;
 }
 
+struct TagPoint {
+	int pos;
+	enum tagtype tag;
+};
+
+
 Handle<Value> HtmlStrip(const Arguments& args) {
     HandleScope scope;
 
@@ -209,15 +226,22 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 
 	  Local<Value> argv[1] = { Number::New(double(inBufSize)) };
 	  Local<Object> outBuffer = b->NewInstance(1, argv);
-
+		
+		// create extra info array
+		std::vector<TagPoint> tagPoints;
 		
 		uint16_t* outBuf = static_cast<uint16_t*>(
 			outBuffer->GetIndexedPropertiesExternalArrayData());
+		const uint16_t* outBufBegin = outBuf;
 
 		// Baby take off your tags , real fast :)
 		size_t numInChars = inBufSize/2;
 		int state = IN_TEXT;
 		int tagType = TAG_ANY;
+		
+		#define START_TAG(offset,t) 	tagPoints.push_back( ((TagPoint){offset + (outBuf - outBufBegin - 1),t}) );
+		START_TAG(1,TAG_ANY);
+		
 		for(size_t i=0; i<numInChars; ++i){
 			switch(inBuf[i]){
 				case '<':
@@ -225,9 +249,11 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 						if( state == IN_SCRIPT && IS_SCRIPT_CLOSE(inBuf,i,numInChars) ){
 							state = IN_TEXT;
 							i+=7;
+							START_TAG(1,TAG_ANY);
 						} else if (state == IN_STYLE && IS_STYLE_CLOSE(inBuf,i,numInChars) ){
 							state = IN_TEXT;
 							i+=6;
+							START_TAG(1,TAG_ANY);
 						} else {
 							break;
 						}
@@ -267,8 +293,10 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 						}
 					}else	if(state == IN_TAG && tagType == TAG_SCRIPT_START){
 						state = IN_SCRIPT;
+						START_TAG(0,TAG_SCRIPT_START);
 					}else	if(state == IN_TAG && tagType == TAG_STYLE_START){
 						state = IN_STYLE;
+						START_TAG(0,TAG_STYLE_START);
 					} else {
 						state = IN_TEXT;
 					}
@@ -331,11 +359,35 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 				default: break;
 			}
 		}
+		// Append a tag for closing the previsous one
+		START_TAG(1,TAG_HINT_END);
+		#undef START_TAG
 		// Set the number of characters written
-		outBuffer->Set(chars_written_sym, 
-			Integer::New(outBuf - static_cast<uint16_t*>(
-				outBuffer->GetIndexedPropertiesExternalArrayData()))
-		);
+		outBuffer->Set(chars_written_sym, Integer::New(outBuf - outBufBegin) );
+		// set the extra tag info
+		Handle<Array> tagInfo = Array::New(tagPoints.size());
+		for(size_t i=0; i < tagPoints.size(); ++i){
+			Handle<Object> pos = Object::New();
+			pos->Set(taghints_pos_sym, Integer::New(tagPoints[i].pos));
+			switch(tagPoints[i].tag){
+				case TAG_SCRIPT_START:
+					pos->Set(taghints_type_sym, taghints_type_script_sym);
+					break;
+				case TAG_STYLE_START:
+					pos->Set(taghints_type_sym, taghints_type_style_sym);
+					break;
+				case TAG_HINT_END:
+					pos->Set(taghints_type_sym, taghints_type_end_sym);
+					break;
+				default:
+					pos->Set(taghints_type_sym, taghints_type_any_sym);
+					break;
+			}
+			tagInfo->Set(i,pos);
+		}
+		outBuffer->Set(taghints_sym, tagInfo);
+
+		// Return the buffer with stripped text
     return scope.Close(outBuffer);
 }
 
@@ -496,6 +548,15 @@ void RegisterModule(Handle<Object> target) {
 	include_script_sym = NODE_PSYMBOL("include_script");
 	include_style_sym = NODE_PSYMBOL("include_style");
 	compact_whitespace_sym = NODE_PSYMBOL("compact_whitespace");
+	taghints_sym = NODE_PSYMBOL("tag_hints");
+	taghints_pos_sym = NODE_PSYMBOL("pos");
+	taghints_type_sym = NODE_PSYMBOL("type");
+	taghints_type_script_sym = NODE_PSYMBOL("script");
+	taghints_type_style_sym = NODE_PSYMBOL("style");
+	taghints_type_any_sym = NODE_PSYMBOL("any");
+	taghints_type_end_sym = NODE_PSYMBOL("end");
+	
+	
 	
   target->Set(String::NewSymbol("html_strip"),
       FunctionTemplate::New(HtmlStrip)->GetFunction());

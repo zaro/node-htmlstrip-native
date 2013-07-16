@@ -15,6 +15,18 @@ module.exports.html_strip = function(html,options){
 	return buf.toString('utf-16le',0,buf._charsWritten*2);
 }
 
+module.exports.html_strip_with_hints = function(html,options){
+	if (typeof html == 'string'){
+		html = new Buffer(html,'utf-16le');
+	}
+	
+	var buf = binding.html_strip(html, html.length, options);
+	return {
+		text: buf.toString('utf-16le',0,buf._charsWritten*2),
+		hints: buf.tag_hints
+	};
+}
+
 module.exports.html_entities_decode = function(string){
 	if (typeof string == 'string'){
 		string = new Buffer(string,'utf-16le');

@@ -230,10 +230,14 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 		// create extra info array
 		std::vector<TagPoint> tagPoints;
 		
-		uint16_t* outBuf = static_cast<uint16_t*>(
+		const uint16_t* outBufBegin = static_cast<uint16_t*>(
 			outBuffer->GetIndexedPropertiesExternalArrayData());
-		const uint16_t* outBufBegin = outBuf;
+		uint16_t* outBuf = const_cast<uint16_t*>(outBufBegin);
 
+		if(compact_whitespace){
+		// Insert one space at the begginng so the lookback doesn't fail
+			*outBuf++ = ' ';
+		}
 		// Baby take off your tags , real fast :)
 		size_t numInChars = inBufSize/2;
 		int state = IN_TEXT;

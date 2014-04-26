@@ -79,6 +79,10 @@ static Persistent<String> taghints_type_end_sym;
 
 #define APPEND_WS_COMPACT(b) if(*(b-1) != ' ') { *b++ = ' '; };
 
+#if defined(_MSC_VER)
+#define strtoll _strtoi64
+#endif
+
 // convert a html entity
 // inBuf - input buffer
 // i - position in input buffer, should point at the '&'
@@ -138,7 +142,7 @@ decode_html_entity(uint16_t* inBuf, size_t &i,const size_t numInChars, uint16_t*
 			if(k>0){
 				// lookup entity here
 				if(inBuf[ns] == ';'){
-					str[k] = inBuf[ns++];
+					str[k] = static_cast<char>(inBuf[ns++]);
 					str[++k] = 0;
 				} else {
 					str[k] = 0;
@@ -177,6 +181,10 @@ decode_html_entity(uint16_t* inBuf, size_t &i,const size_t numInChars, uint16_t*
 struct TagPoint {
 	int pos;
 	enum tagtype tag;
+	TagPoint::TagPoint(int p, enum tagtype t) {
+		pos = p;
+		tag = t;
+	}
 };
 
 
@@ -243,7 +251,7 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 		int state = IN_TEXT;
 		int tagType = TAG_ANY;
 		
-		#define START_TAG(offset,t) 	tagPoints.push_back( ((TagPoint){offset + (outBuf - outBufBegin - 1),t}) );
+		#define START_TAG(offset,t) 	tagPoints.push_back( TagPoint(offset + (outBuf - outBufBegin - 1),t) );
 		START_TAG(1,TAG_ANY);
 		
 		for(size_t i=0; i<numInChars; ++i){

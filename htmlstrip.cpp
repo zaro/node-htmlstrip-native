@@ -181,7 +181,7 @@ decode_html_entity(uint16_t* inBuf, size_t &i,const size_t numInChars, uint16_t*
 struct TagPoint {
 	int pos;
 	enum tagtype tag;
-	TagPoint::TagPoint(int p, enum tagtype t) {
+	TagPoint(int p, enum tagtype t) {
 		pos = p;
 		tag = t;
 	}

@@ -5,10 +5,13 @@
 	"author" : "Svetlozar Argirov <zarrro@gmail.com>",
 	"keywords" : [ "html", "strip", "tag" ,"entities"],
 	"main" : "index.js",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/zaro/node-htmlstrip-native.git"
-  },
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/zaro/node-htmlstrip-native.git"
+	},
 	"dependencies": {
+	},
+	"scripts": {
+		"test" : "node test/test_entities.js"
 	}
 }

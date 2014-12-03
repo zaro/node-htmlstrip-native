@@ -18,7 +18,8 @@ enum states {
 	IN_TAG,
 	IN_COMMENT,
 	IN_SCRIPT,
-	IN_STYLE
+	IN_STYLE,
+	IN_ATTRIBUTE
 };
 
 enum tagtype {
@@ -26,6 +27,7 @@ enum tagtype {
 	TAG_SCRIPT_START,
 	TAG_STYLE_START,
 	TAG_COMMENT,
+	TAG_ATTRIBUTE,
 	TAG_HINT_END
 };
 
@@ -33,6 +35,7 @@ static Persistent<String> chars_written_sym;
 static Persistent<String> include_script_sym;
 static Persistent<String> include_style_sym;
 static Persistent<String> compact_whitespace_sym;
+static Persistent<String> include_attributes_sym;
 
 static Persistent<String> taghints_sym;
 static Persistent<String> taghints_pos_sym;
@@ -40,6 +43,7 @@ static Persistent<String> taghints_type_sym;
 static Persistent<String> taghints_type_script_sym;
 static Persistent<String> taghints_type_style_sym;
 static Persistent<String> taghints_type_any_sym;
+static Persistent<String> taghints_type_attribute_sym;
 static Persistent<String> taghints_type_end_sym;
 
 
@@ -198,21 +202,24 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 	        args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
 			inBufSize = args[1]->Uint32Value();
     }
-		
+
 		if(!inBuf){
 			return ThrowException(
             Exception::TypeError(
 							String::New("HtmlStrip: Arguments must be a UTF-16 encoded Buffer, and length"))
         );
 		}
-		
+
 		bool include_script = true;
 		bool include_style = true;
 		bool compact_whitespace = false;
+		bool include_attributes = false;
+		bool include_all_attributes = false;
+		Local<Object> includeAttributesMap;
 		// Check if we have any options passed
 		if(args.Length() >= 3){
       Local<Object> opts = args[2].As<Object>();
-			
+
 			if(opts->Has(include_script_sym)){
 				include_script = opts->Get(include_script_sym)->ToBoolean()->Value();
 			}
@@ -224,8 +231,15 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 			if(opts->Has(compact_whitespace_sym)){
 				compact_whitespace = opts->Get(compact_whitespace_sym)->ToBoolean()->Value();
 			}
+
+			if(opts->Has(include_attributes_sym)){
+				include_attributes = true;
+				includeAttributesMap = opts->Get(include_attributes_sym)->ToObject();
+				Local< String > allAttr = String::New("*");
+				include_all_attributes = includeAttributesMap->Has(allAttr);
+			}
 		}
-		
+
 		// Create output buffer
 	  Local<Object> global = v8::Context::GetCurrent()->Global();
 	  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
@@ -234,10 +248,10 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 
 	  Local<Value> argv[1] = { Number::New(double(inBufSize)) };
 	  Local<Object> outBuffer = b->NewInstance(1, argv);
-		
+
 		// create extra info array
 		std::vector<TagPoint> tagPoints;
-		
+
 		const uint16_t* outBufBegin = static_cast<uint16_t*>(
 			outBuffer->GetIndexedPropertiesExternalArrayData());
 		uint16_t* outBuf = const_cast<uint16_t*>(outBufBegin);
@@ -250,10 +264,11 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 		size_t numInChars = inBufSize/2;
 		int state = IN_TEXT;
 		int tagType = TAG_ANY;
-		
+		uint16_t openAttribute = 0;
+
 		#define START_TAG(offset,t) 	tagPoints.push_back( TagPoint(offset + (outBuf - outBufBegin - 1),t) );
 		START_TAG(1,TAG_ANY);
-		
+
 		for(size_t i=0; i<numInChars; ++i){
 			switch(inBuf[i]){
 				case '<':
@@ -320,6 +335,43 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 							continue;
 						}
 					}break;
+				case '=':
+					if( state == IN_TAG && include_attributes ){
+						bool includeThisAttr = include_all_attributes;
+
+						if( !include_all_attributes ) {
+							// construct the attribute name
+							uint16_t attrName[256];
+							int k , j = i;
+							for(--j; isspace(inBuf[j]) && j >= 0 ; --j);
+							// This is not very strict check for attribute name
+							for(;
+									inBuf[j] > ' ' &&
+									inBuf[j] != '"' && inBuf[j] != '\'' &&
+									inBuf[j] != '>' && inBuf[j] != '/'  &&
+									inBuf[j] != '=' &&
+									j >= 0
+									; --j);
+							++j;
+							for(k=0; !isspace(inBuf[j]) && inBuf[j] != '=' && (k < 255); ++k, ++j){
+								attrName[k] = inBuf[j];
+							}
+							attrName[k] = 0;
+
+							// set found flag
+							Local< String > attributeName = String::New(attrName, k);
+							includeThisAttr = includeAttributesMap->Has(attributeName);
+						}
+						if ( includeThisAttr ){
+							state = IN_ATTRIBUTE;
+							START_TAG(0,TAG_ATTRIBUTE);
+							for(++i; isspace(inBuf[i]); ++i);
+							if( inBuf[i] == '"' || inBuf[i] == '\'') {
+								openAttribute = inBuf[i];
+								++i;
+							}
+						}
+					}break;
 				// handle whitespace as defined in \s :
 				//		https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
 				case ' ':
@@ -365,6 +417,20 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 						*outBuf++ = inBuf[i];
 					}
 					break;
+				case IN_ATTRIBUTE:
+					if( (openAttribute == inBuf[i] || (openAttribute == 0 && isspace(inBuf[i]) )) ){
+						state = IN_TAG;
+						START_TAG(0,TAG_ANY);
+						openAttribute = 0;
+						if(compact_whitespace){
+							APPEND_WS_COMPACT(outBuf);
+						}else {
+							*outBuf++ = ' ';
+						}
+					} else {
+						*outBuf++ = inBuf[i];
+					}
+					break;
 				case IN_TEXT:
 					*outBuf++ = inBuf[i];
 					break;
@@ -391,6 +457,9 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 				case TAG_HINT_END:
 					pos->Set(taghints_type_sym, taghints_type_end_sym);
 					break;
+				case TAG_ATTRIBUTE:
+					pos->Set(taghints_type_sym, taghints_type_attribute_sym);
+					break;
 				default:
 					pos->Set(taghints_type_sym, taghints_type_any_sym);
 					break;
@@ -413,14 +482,14 @@ Handle<Value> HtmlEntitiesDecode(const Arguments& args) {
 	        args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
 			inBufSize = args[1]->Uint32Value();
     }
-		
+
 		if(!inBuf){
 			return ThrowException(
             Exception::TypeError(
 							String::New("ConvertHtmlEntities: Arguments must be a UTF-16 encoded Buffer, and length"))
         );
 		}
-		
+
 		// Create output buffer
 	  Local<Object> global = v8::Context::GetCurrent()->Global();
 	  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
@@ -430,7 +499,7 @@ Handle<Value> HtmlEntitiesDecode(const Arguments& args) {
 	  Local<Value> argv[1] = { Number::New(double(inBufSize)) };
 	  Local<Object> outBuffer = b->NewInstance(1, argv);
 
-		
+
 		uint16_t* outBuf = static_cast<uint16_t*>(
 			outBuffer->GetIndexedPropertiesExternalArrayData());
 
@@ -447,7 +516,7 @@ Handle<Value> HtmlEntitiesDecode(const Arguments& args) {
 			*outBuf++ = inBuf[i];
 		}
 		// Set the number of characters written
-		outBuffer->Set(chars_written_sym, 
+		outBuffer->Set(chars_written_sym,
 			Integer::New(outBuf - static_cast<uint16_t*>(
 				outBuffer->GetIndexedPropertiesExternalArrayData()))
 		);
@@ -466,14 +535,14 @@ Handle<Value> AccentedCharsNormalize(const Arguments& args) {
 	        args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
 			inBufSize = args[1]->Uint32Value();
     }
-		
+
 		if(!inBuf){
 			return ThrowException(
             Exception::TypeError(
 							String::New("AccentedCharsNormalize: Arguments must be a UTF-16 encoded Buffer, and length"))
         );
 		}
-		
+
 		// Create output buffer
 	  Local<Object> global = v8::Context::GetCurrent()->Global();
 	  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
@@ -484,7 +553,7 @@ Handle<Value> AccentedCharsNormalize(const Arguments& args) {
 	  Local<Value> argv[1] = { Number::New(double(inBufSize * 2)) };
 	  Local<Object> outBuffer = b->NewInstance(1, argv);
 
-		
+
 		uint16_t* outBuf = static_cast<uint16_t*>(
 			outBuffer->GetIndexedPropertiesExternalArrayData());
 
@@ -496,7 +565,7 @@ Handle<Value> AccentedCharsNormalize(const Arguments& args) {
 			*outBuf++ = inBuf[i];
 		}
 		// Set the number of characters written
-		outBuffer->Set(chars_written_sym, 
+		outBuffer->Set(chars_written_sym,
 			Integer::New(outBuf - static_cast<uint16_t*>(
 				outBuffer->GetIndexedPropertiesExternalArrayData()))
 		);
@@ -515,14 +584,14 @@ Handle<Value> AccentedCharsStrip(const Arguments& args) {
 	        args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
 			inBufSize = args[1]->Uint32Value();
     }
-		
+
 		if(!inBuf){
 			return ThrowException(
             Exception::TypeError(
 							String::New("AccentedCharsNormalize: Arguments must be a UTF-16 encoded Buffer, and length"))
         );
 		}
-		
+
 		// Create output buffer
 	  Local<Object> global = v8::Context::GetCurrent()->Global();
 	  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
@@ -533,7 +602,7 @@ Handle<Value> AccentedCharsStrip(const Arguments& args) {
 	  Local<Value> argv[1] = { Number::New(double(inBufSize * 2)) };
 	  Local<Object> outBuffer = b->NewInstance(1, argv);
 
-		
+
 		uint16_t* outBuf = static_cast<uint16_t*>(
 			outBuffer->GetIndexedPropertiesExternalArrayData());
 
@@ -545,7 +614,7 @@ Handle<Value> AccentedCharsStrip(const Arguments& args) {
 			*outBuf++ = inBuf[i];
 		}
 		// Set the number of characters written
-		outBuffer->Set(chars_written_sym, 
+		outBuffer->Set(chars_written_sym,
 			Integer::New(outBuf - static_cast<uint16_t*>(
 				outBuffer->GetIndexedPropertiesExternalArrayData()))
 		);
@@ -560,16 +629,16 @@ void RegisterModule(Handle<Object> target) {
 	include_script_sym = NODE_PSYMBOL("include_script");
 	include_style_sym = NODE_PSYMBOL("include_style");
 	compact_whitespace_sym = NODE_PSYMBOL("compact_whitespace");
+	include_attributes_sym = NODE_PSYMBOL("include_attributes");
 	taghints_sym = NODE_PSYMBOL("tag_hints");
 	taghints_pos_sym = NODE_PSYMBOL("pos");
 	taghints_type_sym = NODE_PSYMBOL("type");
 	taghints_type_script_sym = NODE_PSYMBOL("script");
 	taghints_type_style_sym = NODE_PSYMBOL("style");
 	taghints_type_any_sym = NODE_PSYMBOL("any");
+	taghints_type_attribute_sym = NODE_PSYMBOL("attribute");
 	taghints_type_end_sym = NODE_PSYMBOL("end");
-	
-	
-	
+
   target->Set(String::NewSymbol("html_strip"),
       FunctionTemplate::New(HtmlStrip)->GetFunction());
 

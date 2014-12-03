@@ -7,11 +7,11 @@ via npm:
 
     npm install htmlstrip-native
 
-from source:
+from source [![Build Status](https://travis-ci.org/zaro/node-htmlstrip-native.svg?branch=master)](https://travis-ci.org/zaro/node-htmlstrip-native) :
 
     git clone git://github.com/zaro/node-htmlstrip-native.git
-		cd node-htmlstrip-native
-		npm install
+    cd node-htmlstrip-native
+    npm install
 
 ## Use
 
@@ -43,9 +43,9 @@ encoded Buffer. The optional second argument can hold the following options:
 
 ```js
 {
-	include_script : true, // include the content of <script> tags
-	include_style : true, // include the content of <style> tags
-	compact_whitespace : false // compact consecutive '\s' whitespace into single char
+  include_script : true, // include the content of <script> tags
+  include_style : true, // include the content of <style> tags
+  compact_whitespace : false // compact consecutive '\s' whitespace into single char
   include_attributes : { // include attribute values in the output
     '*':true ,  // special value, means : Include ALL attributes
     'alt': true , // include attributes named 'alt'

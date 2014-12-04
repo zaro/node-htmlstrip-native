@@ -329,7 +329,7 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 					}
 					continue;
 				case '&':
-					if( (state == IN_TEXT || state == IN_SCRIPT) && (i+2)<numInChars){
+					if( (state == IN_TEXT || state == IN_SCRIPT || state== IN_ATTRIBUTE) && (i+2)<numInChars ){
 						// Handle unicode character code
 						if(decode_html_entity(inBuf,i,numInChars,outBuf)){
 							continue;

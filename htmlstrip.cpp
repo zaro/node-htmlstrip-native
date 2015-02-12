@@ -10,6 +10,7 @@
 #include <ctype.h>
 
 #include <vector>
+#include "htmlstrip.hpp"
 
 using namespace v8;
 
@@ -86,6 +87,14 @@ extern Persistent<String> taghints_type_end_sym;
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
 #endif
+
+
+#if (NODE_MAJOR_VERSION == 0) && (NODE_MINOR_VERSION < 12)
+
+#else
+
+#endif
+
 
 // convert a html entity
 // inBuf - input buffer
@@ -192,43 +201,13 @@ struct TagPoint {
 };
 
 
-Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, Local<Object> opts) {
-    HandleScope scope;
+Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts) {
 
 		if(!inBuf){
 			return ThrowException(
             Exception::TypeError(
 							String::New("HtmlStrip: Arguments must be a UTF-16 encoded Buffer, and length"))
         );
-		}
-
-		bool include_script = true;
-		bool include_style = true;
-		bool compact_whitespace = false;
-		bool include_attributes = false;
-		bool include_all_attributes = false;
-		Local<Object> includeAttributesMap;
-		// Check if we have any options passed
-		if(!opts.IsEmpty()){
-
-			if(opts->Has(include_script_sym)){
-				include_script = opts->Get(include_script_sym)->ToBoolean()->Value();
-			}
-
-			if(opts->Has(include_style_sym)){
-				include_style = opts->Get(include_style_sym)->ToBoolean()->Value();
-			}
-
-			if(opts->Has(compact_whitespace_sym)){
-				compact_whitespace = opts->Get(compact_whitespace_sym)->ToBoolean()->Value();
-			}
-
-			if(opts->Has(include_attributes_sym)){
-				include_attributes = true;
-				includeAttributesMap = opts->Get(include_attributes_sym)->ToObject();
-				Local< String > allAttr = String::New("*");
-				include_all_attributes = includeAttributesMap->Has(allAttr);
-			}
 		}
 
 		// Create output buffer
@@ -247,7 +226,7 @@ Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, Local<Object> opts) {
 			outBuffer->GetIndexedPropertiesExternalArrayData());
 		uint16_t* outBuf = const_cast<uint16_t*>(outBufBegin);
 
-		if(compact_whitespace){
+		if(opts.compact_whitespace){
 		// Insert one space at the begginng so the lookback doesn't fail
 			*outBuf++ = ' ';
 		}
@@ -296,7 +275,7 @@ Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, Local<Object> opts) {
 					} else {
 						continue;
 					}
-					if(compact_whitespace){
+					if(opts.compact_whitespace){
 						APPEND_WS_COMPACT(outBuf);
 					}else {
 						*outBuf++ = ' ';
@@ -327,10 +306,10 @@ Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, Local<Object> opts) {
 						}
 					}break;
 				case '=':
-					if( state == IN_TAG && include_attributes ){
-						bool includeThisAttr = include_all_attributes;
+					if( state == IN_TAG && opts.include_attributes ){
+						bool includeThisAttr = opts.include_all_attributes;
 
-						if( !include_all_attributes ) {
+						if( !opts.include_all_attributes ) {
 							// construct the attribute name
 							uint16_t attrName[256];
 							int k , j = i;
@@ -351,7 +330,7 @@ Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, Local<Object> opts) {
 
 							// set found flag
 							Local< String > attributeName = String::New(attrName, k);
-							includeThisAttr = includeAttributesMap->Has(attributeName);
+							includeThisAttr = opts.includeAttributesMap->Has(attributeName);
 						}
 						if ( includeThisAttr ){
 							state = IN_ATTRIBUTE;
@@ -390,7 +369,7 @@ Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, Local<Object> opts) {
 				case 0x202f:
 				case 0x205f:
 				case 0x3000:
-					if(compact_whitespace){
+					if(opts.compact_whitespace){
 						APPEND_WS_COMPACT(outBuf);
 						continue;
 					}
@@ -399,12 +378,12 @@ Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, Local<Object> opts) {
 			}
 			switch(state){
 				case IN_STYLE:
-					if(include_style){
+					if(opts.include_style){
 						*outBuf++ = inBuf[i];
 					}
 					break;
 				case IN_SCRIPT:
-					if(include_script){
+					if(opts.include_script){
 						*outBuf++ = inBuf[i];
 					}
 					break;
@@ -413,7 +392,7 @@ Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, Local<Object> opts) {
 						state = IN_TAG;
 						START_TAG(0,TAG_ANY);
 						openAttribute = 0;
-						if(compact_whitespace){
+						if(opts.compact_whitespace){
 							APPEND_WS_COMPACT(outBuf);
 						}else {
 							*outBuf++ = ' ';
@@ -460,11 +439,10 @@ Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, Local<Object> opts) {
 		outBuffer->Set(taghints_sym, tagInfo);
 
 		// Return the buffer with stripped text
-    return scope.Close(outBuffer);
+    return outBuffer;
 }
 
 Handle<Value> HtmlEntitiesDecode(uint16_t* inBuf, size_t inBufSize) {
-    HandleScope scope;
 
 		if(!inBuf){
 			return ThrowException(
@@ -503,13 +481,12 @@ Handle<Value> HtmlEntitiesDecode(uint16_t* inBuf, size_t inBufSize) {
 			Integer::New(outBuf - static_cast<uint16_t*>(
 				outBuffer->GetIndexedPropertiesExternalArrayData()))
 		);
-    return scope.Close(outBuffer);
+    return outBuffer;
 }
 
 // Covert accenteds char to its ascii representation,
 // this may produce longer output string, than the output
 Handle<Value> AccentedCharsNormalize(uint16_t* inBuf, size_t inBufSize) {
-    HandleScope scope;
 
 		if(!inBuf){
 			return ThrowException(
@@ -544,13 +521,12 @@ Handle<Value> AccentedCharsNormalize(uint16_t* inBuf, size_t inBufSize) {
 			Integer::New(outBuf - static_cast<uint16_t*>(
 				outBuffer->GetIndexedPropertiesExternalArrayData()))
 		);
-    return scope.Close(outBuffer);
+		return outBuffer;
 }
 
 // remove accents from accented chars
 // this may produce longer output string, than the output
 Handle<Value> AccentedCharsStrip(uint16_t* inBuf, size_t inBufSize) {
-    HandleScope scope;
 
 		if(!inBuf){
 			return ThrowException(
@@ -585,5 +561,5 @@ Handle<Value> AccentedCharsStrip(uint16_t* inBuf, size_t inBufSize) {
 			Integer::New(outBuf - static_cast<uint16_t*>(
 				outBuffer->GetIndexedPropertiesExternalArrayData()))
 		);
-    return scope.Close(outBuffer);
+    return outBuffer;
 }

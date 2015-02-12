@@ -7,7 +7,8 @@ var strings = [
 '&&&approx;',
 'Begin <img src="some_url" alt="This should be \'in\' the output"> End',
 'Begin <img src="some_url" alt=OnlyThis should be in the output> End',
-"Begin <img src=\"some_url\" alt='single\"_\"quoted'> End"
+"Begin <img src=\"some_url\" alt='single\"_\"quoted'> End",
+"Begin <img src=\"some_url\" alt='single> End"
 ]
 
 for(var i in strings){

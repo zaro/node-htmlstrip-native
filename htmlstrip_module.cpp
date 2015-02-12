@@ -20,6 +20,62 @@ Persistent<String> taghints_type_any_sym;
 Persistent<String> taghints_type_attribute_sym;
 Persistent<String> taghints_type_end_sym;
 
+Handle<Value> HtmlStripFunc(const Arguments& args) {
+    uint16_t* inBuf = NULL;
+    size_t inBufSize = 0;
+    if (args.Length() >= 2) {
+      inBuf = static_cast<uint16_t*>(  // NULL on flush.
+          args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
+      inBufSize = args[1]->Uint32Value();
+    }
+
+    Local<Object> opts;
+    // Check if we have any options passed
+    if(args.Length() >= 3){
+      opts = args[2].As<Object>();
+
+    }
+
+    return HtmlStrip(inBuf, inBufSize, opts);
+}
+
+Handle<Value> HtmlEntitiesDecodeFunc(const Arguments& args) {
+
+    uint16_t* inBuf = NULL;
+    size_t inBufSize = 0;
+    if (args.Length() >= 2) {
+      inBuf = static_cast<uint16_t*>(  // NULL on flush.
+          args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
+      inBufSize = args[1]->Uint32Value();
+    }
+
+    return HtmlEntitiesDecode(inBuf, inBufSize);
+}
+
+Handle<Value> AccentedCharsNormalizeFunc(const Arguments& args) {
+    uint16_t* inBuf = NULL;
+    size_t inBufSize = 0;
+    if (args.Length() >= 2) {
+      inBuf = static_cast<uint16_t*>(  // NULL on flush.
+          args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
+      inBufSize = args[1]->Uint32Value();
+    }
+
+    return AccentedCharsNormalize(inBuf, inBufSize);
+}
+
+Handle<Value> AccentedCharsStripFunc(const Arguments& args) {
+    uint16_t* inBuf = NULL;
+    size_t inBufSize = 0;
+    if (args.Length() >= 2) {
+      inBuf = static_cast<uint16_t*>(  // NULL on flush.
+          args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
+      inBufSize = args[1]->Uint32Value();
+    }
+
+    return AccentedCharsStrip(inBuf, inBufSize);
+}
+
 void RegisterModule(Handle<Object> target) {
   chars_written_sym = NODE_PSYMBOL("_charsWritten");
   include_script_sym = NODE_PSYMBOL("include_script");
@@ -36,16 +92,16 @@ void RegisterModule(Handle<Object> target) {
   taghints_type_end_sym = NODE_PSYMBOL("end");
 
   target->Set(String::NewSymbol("html_strip"),
-      FunctionTemplate::New(HtmlStrip)->GetFunction());
+      FunctionTemplate::New(HtmlStripFunc)->GetFunction());
 
   target->Set(String::NewSymbol("html_entities_decode"),
-      FunctionTemplate::New(HtmlEntitiesDecode)->GetFunction());
+      FunctionTemplate::New(HtmlEntitiesDecodeFunc)->GetFunction());
 
   target->Set(String::NewSymbol("accented_chars_norm"),
-      FunctionTemplate::New(AccentedCharsNormalize)->GetFunction());
+      FunctionTemplate::New(AccentedCharsNormalizeFunc)->GetFunction());
 
   target->Set(String::NewSymbol("accented_chars_strip"),
-      FunctionTemplate::New(AccentedCharsStrip)->GetFunction());
+      FunctionTemplate::New(AccentedCharsStripFunc)->GetFunction());
 }
 
 

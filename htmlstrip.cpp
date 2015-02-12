@@ -192,16 +192,8 @@ struct TagPoint {
 };
 
 
-Handle<Value> HtmlStrip(const Arguments& args) {
+Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, Local<Object> opts) {
     HandleScope scope;
-
-		uint16_t* inBuf = NULL;
-		size_t inBufSize = 0;
-    if (args.Length() >= 2) {
-			inBuf = static_cast<uint16_t*>(  // NULL on flush.
-	        args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
-			inBufSize = args[1]->Uint32Value();
-    }
 
 		if(!inBuf){
 			return ThrowException(
@@ -217,8 +209,7 @@ Handle<Value> HtmlStrip(const Arguments& args) {
 		bool include_all_attributes = false;
 		Local<Object> includeAttributesMap;
 		// Check if we have any options passed
-		if(args.Length() >= 3){
-      Local<Object> opts = args[2].As<Object>();
+		if(!opts.IsEmpty()){
 
 			if(opts->Has(include_script_sym)){
 				include_script = opts->Get(include_script_sym)->ToBoolean()->Value();
@@ -472,16 +463,8 @@ Handle<Value> HtmlStrip(const Arguments& args) {
     return scope.Close(outBuffer);
 }
 
-Handle<Value> HtmlEntitiesDecode(const Arguments& args) {
+Handle<Value> HtmlEntitiesDecode(uint16_t* inBuf, size_t inBufSize) {
     HandleScope scope;
-
-		uint16_t* inBuf = NULL;
-		size_t inBufSize = 0;
-    if (args.Length() >= 2) {
-			inBuf = static_cast<uint16_t*>(  // NULL on flush.
-	        args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
-			inBufSize = args[1]->Uint32Value();
-    }
 
 		if(!inBuf){
 			return ThrowException(
@@ -525,16 +508,8 @@ Handle<Value> HtmlEntitiesDecode(const Arguments& args) {
 
 // Covert accenteds char to its ascii representation,
 // this may produce longer output string, than the output
-Handle<Value> AccentedCharsNormalize(const Arguments& args) {
+Handle<Value> AccentedCharsNormalize(uint16_t* inBuf, size_t inBufSize) {
     HandleScope scope;
-
-		uint16_t* inBuf = NULL;
-		size_t inBufSize = 0;
-    if (args.Length() >= 2) {
-			inBuf = static_cast<uint16_t*>(  // NULL on flush.
-	        args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
-			inBufSize = args[1]->Uint32Value();
-    }
 
 		if(!inBuf){
 			return ThrowException(
@@ -574,16 +549,8 @@ Handle<Value> AccentedCharsNormalize(const Arguments& args) {
 
 // remove accents from accented chars
 // this may produce longer output string, than the output
-Handle<Value> AccentedCharsStrip(const Arguments& args) {
+Handle<Value> AccentedCharsStrip(uint16_t* inBuf, size_t inBufSize) {
     HandleScope scope;
-
-		uint16_t* inBuf = NULL;
-		size_t inBufSize = 0;
-    if (args.Length() >= 2) {
-			inBuf = static_cast<uint16_t*>(  // NULL on flush.
-	        args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
-			inBufSize = args[1]->Uint32Value();
-    }
 
 		if(!inBuf){
 			return ThrowException(

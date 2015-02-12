@@ -14,16 +14,17 @@ for(var i in acc_from_norm){
 for(var i in strings){
 	var converted = hs.accented_chars_norm(i);
 	var result = (strings[i] == converted);
-	console.log(
-		"'" + i + "' : '" + strings[i] + "' ? " + 
-		"'" + strings[i] + "' == '" + converted + "' -> '" + 
-		result + "'"
-	);
 	if(!result){
+		console.log(
+			"'" + i + "' : '" + strings[i] + "' ? " +
+			"'" + strings[i] + "' == '" + converted + "' -> '" +
+			result + "'"
+		);
 		console.log('FAIL!');
 		process.exit(-1);
 	}
 }
+console.log('OK');
 
 console.log('TEST accented characters stripping');
 // Check stripping
@@ -39,14 +40,14 @@ for(var i in acc_from_strip){
 for(var i in strings){
 	var converted = hs.accented_chars_strip(i);
 	var result = (strings[i] == converted);
-	console.log(
-		"'" + i + "' : '" + strings[i] + "' ? " + 
-		"'" + strings[i] + "' == '" + converted + "' -> '" + 
-		result + "'"
-	);
 	if(!result){
+		console.log(
+			"'" + i + "' : '" + strings[i] + "' ? " +
+			"'" + strings[i] + "' == '" + converted + "' -> '" +
+			result + "'"
+		);
 		console.log('FAIL!');
 		process.exit(-1);
 	}
 }
-console.log('DONE');
+console.log('OK');

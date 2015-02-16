@@ -9,7 +9,7 @@ for(var i in entitiesFiles){
 	for(var i in o){
 		entities[i] = o[i];
 	}
-	
+
 }
 
 function rs(len) {
@@ -23,8 +23,8 @@ function rs(len) {
 
     for( var i=0; i < len; i++ )
         text += possible.charAt(Math.floor(Math.random() * possible.length));
-		
-		// we don't wan't fake num entities 
+
+		// we don't wan't fake num entities
 		text = text.replace(/&#/g,'&@');
 		return text;
 }
@@ -39,20 +39,21 @@ for(var i in entities){
 
 	ins += '&' + i;
 	outs += entities[i];
-	
+
 	p = rs(2);
 	while(entities[i].slice(-1) != ';' &&  p[0] == ';'){
 		p = rs(2);
 	}
 	ins += p +'\n';
 	outs += p +'\n';
-	
+
 	inl.push(ins);
 	outl.push(outs);
 }
 
 var ITERATIONS = 100;
 
+console.log("TEST Html entities")
 for(var kkk; kkk< ITERATIONS ; ++kkk){
 	for(var i in inl){
 		var ins = inl[i];

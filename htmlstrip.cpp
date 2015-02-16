@@ -32,21 +32,6 @@ enum tagtype {
 	TAG_HINT_END
 };
 
-extern Persistent<String> chars_written_sym;
-extern Persistent<String> include_script_sym;
-extern Persistent<String> include_style_sym;
-extern Persistent<String> compact_whitespace_sym;
-extern Persistent<String> include_attributes_sym;
-
-extern Persistent<String> taghints_sym;
-extern Persistent<String> taghints_pos_sym;
-extern Persistent<String> taghints_type_sym;
-extern Persistent<String> taghints_type_script_sym;
-extern Persistent<String> taghints_type_style_sym;
-extern Persistent<String> taghints_type_any_sym;
-extern Persistent<String> taghints_type_attribute_sym;
-extern Persistent<String> taghints_type_end_sym;
-
 
 #define IS_SCRIPT_OPEN(inBuf,i,numInChars) \
 	( \
@@ -91,7 +76,67 @@ extern Persistent<String> taghints_type_end_sym;
 
 #if (NODE_MAJOR_VERSION == 0) && (NODE_MINOR_VERSION < 12)
 
+extern Persistent<String> chars_written_sym;
+extern Persistent<String> include_script_sym;
+extern Persistent<String> include_style_sym;
+extern Persistent<String> compact_whitespace_sym;
+extern Persistent<String> include_attributes_sym;
+
+extern Persistent<String> taghints_sym;
+extern Persistent<String> taghints_pos_sym;
+extern Persistent<String> taghints_type_sym;
+extern Persistent<String> taghints_type_script_sym;
+extern Persistent<String> taghints_type_style_sym;
+extern Persistent<String> taghints_type_any_sym;
+extern Persistent<String> taghints_type_attribute_sym;
+extern Persistent<String> taghints_type_end_sym;
+
+#define THROW ThrowException
+#define NEW_STRING(x) String::New(x)
+#define NEW_STRING_BUF(b,s) String::New(b,s)
+#define NEW_STRING_SYM(x) String::NewSymbol(x)
+#define NEW_NUMBER(x) Number::New(x)
+#define NEW_INTEGER(x) Integer::New(x)
+#define NEW_ARRAY(x) Array::New(x)
+#define NEW_OBJECT() Object::New()
+
+#define GET_GLOBAL Context::GetCurrent()->Global()
+#define PERSISTENT(x) x
+
+#define HANDLE_SCOPE
+#define RETURN(x) return x;
+
 #else
+
+extern Persistent<Value> chars_written_sym;
+extern Persistent<Value> include_script_sym;
+extern Persistent<Value> include_style_sym;
+extern Persistent<Value> compact_whitespace_sym;
+extern Persistent<Value> include_attributes_sym;
+
+extern Persistent<Value> taghints_sym;
+extern Persistent<Value> taghints_pos_sym;
+extern Persistent<Value> taghints_type_sym;
+extern Persistent<Value> taghints_type_script_sym;
+extern Persistent<Value> taghints_type_style_sym;
+extern Persistent<Value> taghints_type_any_sym;
+extern Persistent<Value> taghints_type_attribute_sym;
+extern Persistent<Value> taghints_type_end_sym;
+
+#define THROW isolate->ThrowException
+#define NEW_STRING(x) String::NewFromUtf8(isolate, x)
+#define NEW_STRING_BUF(b,s) String::NewFromTwoByte(isolate, b, String::kNormalString, s)
+#define NEW_STRING_SYM(x) String::NewFromUtf8(isolate, x, String::kInternalizedString)
+#define NEW_NUMBER(x) Number::New(isolate, x)
+#define NEW_INTEGER(x) Integer::New(isolate, x)
+#define NEW_ARRAY(x) Array::New(isolate, x)
+#define NEW_OBJECT() Object::New(isolate)
+
+#define GET_GLOBAL isolate->GetCurrentContext()->Global()
+#define PERSISTENT(x) Local<Value>::New(isolate, x)
+
+#define HANDLE_SCOPE EscapableHandleScope handle_scope(isolate);
+#define RETURN(x) return handle_scope.Escape(outBuffer);
 
 #endif
 
@@ -201,22 +246,25 @@ struct TagPoint {
 };
 
 
-Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts) {
+Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts, v8::Isolate* isolate) {
 
 		if(!inBuf){
-			return ThrowException(
+			THROW(
             Exception::TypeError(
-							String::New("HtmlStrip: Arguments must be a UTF-16 encoded Buffer, and length"))
+							NEW_STRING("HtmlStrip: Arguments must be a UTF-16 encoded Buffer, and length"))
         );
+			return Local<Value>();
 		}
 
+		HANDLE_SCOPE;
+
 		// Create output buffer
-	  Local<Object> global = v8::Context::GetCurrent()->Global();
-	  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
+	  Local<Object> global = GET_GLOBAL;
+	  Local<Value> bv = global->Get(NEW_STRING_SYM("Buffer"));
 	  assert(bv->IsFunction());
 	  Local<Function> b = Local<Function>::Cast(bv);
 
-	  Local<Value> argv[1] = { Number::New(double(inBufSize)) };
+	  Local<Value> argv[1] = { NEW_NUMBER(double(inBufSize)) };
 	  Local<Object> outBuffer = b->NewInstance(1, argv);
 
 		// create extra info array
@@ -329,7 +377,7 @@ Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts
 							attrName[k] = 0;
 
 							// set found flag
-							Local< String > attributeName = String::New(attrName, k);
+							Local< String > attributeName = NEW_STRING_BUF(attrName, k);
 							includeThisAttr = opts.includeAttributesMap->Has(attributeName);
 						}
 						if ( includeThisAttr ){
@@ -411,53 +459,56 @@ Handle<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts
 		START_TAG(1,TAG_HINT_END);
 		#undef START_TAG
 		// Set the number of characters written
-		outBuffer->Set(chars_written_sym, Integer::New(outBuf - outBufBegin) );
+		outBuffer->Set(PERSISTENT(chars_written_sym), NEW_INTEGER(outBuf - outBufBegin) );
 		// set the extra tag info
-		Handle<Array> tagInfo = Array::New(tagPoints.size());
+		Handle<Array> tagInfo = NEW_ARRAY(tagPoints.size());
 		for(size_t i=0; i < tagPoints.size(); ++i){
-			Handle<Object> pos = Object::New();
-			pos->Set(taghints_pos_sym, Integer::New(tagPoints[i].pos));
+			Handle<Object> pos = NEW_OBJECT();
+			pos->Set(PERSISTENT(taghints_pos_sym), NEW_INTEGER(tagPoints[i].pos));
 			switch(tagPoints[i].tag){
 				case TAG_SCRIPT_START:
-					pos->Set(taghints_type_sym, taghints_type_script_sym);
+					pos->Set(PERSISTENT(taghints_type_sym), PERSISTENT(taghints_type_script_sym));
 					break;
 				case TAG_STYLE_START:
-					pos->Set(taghints_type_sym, taghints_type_style_sym);
+					pos->Set(PERSISTENT(taghints_type_sym), PERSISTENT(taghints_type_style_sym));
 					break;
 				case TAG_HINT_END:
-					pos->Set(taghints_type_sym, taghints_type_end_sym);
+					pos->Set(PERSISTENT(taghints_type_sym), PERSISTENT(taghints_type_end_sym));
 					break;
 				case TAG_ATTRIBUTE:
-					pos->Set(taghints_type_sym, taghints_type_attribute_sym);
+					pos->Set(PERSISTENT(taghints_type_sym), PERSISTENT(taghints_type_attribute_sym));
 					break;
 				default:
-					pos->Set(taghints_type_sym, taghints_type_any_sym);
+					pos->Set(PERSISTENT(taghints_type_sym), PERSISTENT(taghints_type_any_sym));
 					break;
 			}
 			tagInfo->Set(i,pos);
 		}
-		outBuffer->Set(taghints_sym, tagInfo);
+		outBuffer->Set(PERSISTENT(taghints_sym), tagInfo);
 
 		// Return the buffer with stripped text
-    return outBuffer;
+    RETURN(outBuffer);
 }
 
-Handle<Value> HtmlEntitiesDecode(uint16_t* inBuf, size_t inBufSize) {
+Local<Value> HtmlEntitiesDecode(uint16_t* inBuf, size_t inBufSize, v8::Isolate* isolate) {
 
 		if(!inBuf){
-			return ThrowException(
+			THROW(
             Exception::TypeError(
-							String::New("ConvertHtmlEntities: Arguments must be a UTF-16 encoded Buffer, and length"))
+							NEW_STRING("ConvertHtmlEntities: Arguments must be a UTF-16 encoded Buffer, and length"))
         );
+			return Local<Value>();
+
 		}
+		HANDLE_SCOPE;
 
 		// Create output buffer
-	  Local<Object> global = v8::Context::GetCurrent()->Global();
-	  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
+	  Local<Object> global = GET_GLOBAL;
+	  Local<Value> bv = global->Get(NEW_STRING_SYM("Buffer"));
 	  assert(bv->IsFunction());
 	  Local<Function> b = Local<Function>::Cast(bv);
 
-	  Local<Value> argv[1] = { Number::New(double(inBufSize)) };
+	  Local<Value> argv[1] = { NEW_NUMBER(double(inBufSize)) };
 	  Local<Object> outBuffer = b->NewInstance(1, argv);
 
 
@@ -477,32 +528,35 @@ Handle<Value> HtmlEntitiesDecode(uint16_t* inBuf, size_t inBufSize) {
 			*outBuf++ = inBuf[i];
 		}
 		// Set the number of characters written
-		outBuffer->Set(chars_written_sym,
-			Integer::New(outBuf - static_cast<uint16_t*>(
+		outBuffer->Set(PERSISTENT(chars_written_sym),
+			NEW_INTEGER(outBuf - static_cast<uint16_t*>(
 				outBuffer->GetIndexedPropertiesExternalArrayData()))
 		);
-    return outBuffer;
+
+		RETURN(outBuffer);
 }
 
 // Covert accenteds char to its ascii representation,
 // this may produce longer output string, than the output
-Handle<Value> AccentedCharsNormalize(uint16_t* inBuf, size_t inBufSize) {
+Local<Value> AccentedCharsNormalize(uint16_t* inBuf, size_t inBufSize, v8::Isolate* isolate) {
 
 		if(!inBuf){
-			return ThrowException(
+			THROW(
             Exception::TypeError(
-							String::New("AccentedCharsNormalize: Arguments must be a UTF-16 encoded Buffer, and length"))
+							NEW_STRING("AccentedCharsNormalize: Arguments must be a UTF-16 encoded Buffer, and length"))
         );
+			return Local<Value>();
 		}
+		HANDLE_SCOPE;
 
 		// Create output buffer
-	  Local<Object> global = v8::Context::GetCurrent()->Global();
-	  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
+	  Local<Object> global = GET_GLOBAL;
+	  Local<Value> bv = global->Get(NEW_STRING_SYM("Buffer"));
 	  assert(bv->IsFunction());
 	  Local<Function> b = Local<Function>::Cast(bv);
 
 		// Allocate double size buffer , as in the worst case output string will be double legnth
-	  Local<Value> argv[1] = { Number::New(double(inBufSize * 2)) };
+	  Local<Value> argv[1] = { NEW_NUMBER(double(inBufSize * 2)) };
 	  Local<Object> outBuffer = b->NewInstance(1, argv);
 
 
@@ -517,32 +571,35 @@ Handle<Value> AccentedCharsNormalize(uint16_t* inBuf, size_t inBufSize) {
 			*outBuf++ = inBuf[i];
 		}
 		// Set the number of characters written
-		outBuffer->Set(chars_written_sym,
-			Integer::New(outBuf - static_cast<uint16_t*>(
+		outBuffer->Set(PERSISTENT(chars_written_sym),
+			NEW_INTEGER(outBuf - static_cast<uint16_t*>(
 				outBuffer->GetIndexedPropertiesExternalArrayData()))
 		);
-		return outBuffer;
+
+		RETURN(outBuffer);
 }
 
 // remove accents from accented chars
 // this may produce longer output string, than the output
-Handle<Value> AccentedCharsStrip(uint16_t* inBuf, size_t inBufSize) {
+Local<Value> AccentedCharsStrip(uint16_t* inBuf, size_t inBufSize, v8::Isolate* isolate) {
 
 		if(!inBuf){
-			return ThrowException(
+			THROW(
             Exception::TypeError(
-							String::New("AccentedCharsNormalize: Arguments must be a UTF-16 encoded Buffer, and length"))
+							NEW_STRING("AccentedCharsNormalize: Arguments must be a UTF-16 encoded Buffer, and length"))
         );
+			return Local<Value>();
 		}
+		HANDLE_SCOPE;
 
 		// Create output buffer
-	  Local<Object> global = v8::Context::GetCurrent()->Global();
-	  Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
+	  Local<Object> global = GET_GLOBAL;
+	  Local<Value> bv = global->Get(NEW_STRING_SYM("Buffer"));
 	  assert(bv->IsFunction());
 	  Local<Function> b = Local<Function>::Cast(bv);
 
 		// Allocate double size buffer , as in the worst case output string will be double legnth
-	  Local<Value> argv[1] = { Number::New(double(inBufSize * 2)) };
+	  Local<Value> argv[1] = { NEW_NUMBER(double(inBufSize * 2)) };
 	  Local<Object> outBuffer = b->NewInstance(1, argv);
 
 
@@ -557,9 +614,10 @@ Handle<Value> AccentedCharsStrip(uint16_t* inBuf, size_t inBufSize) {
 			*outBuf++ = inBuf[i];
 		}
 		// Set the number of characters written
-		outBuffer->Set(chars_written_sym,
-			Integer::New(outBuf - static_cast<uint16_t*>(
+		outBuffer->Set(PERSISTENT(chars_written_sym),
+			NEW_INTEGER(outBuf - static_cast<uint16_t*>(
 				outBuffer->GetIndexedPropertiesExternalArrayData()))
 		);
-    return outBuffer;
+
+		RETURN(outBuffer);
 }

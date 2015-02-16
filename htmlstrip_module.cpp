@@ -8,6 +8,6 @@
 
 #else
 
-#include "htmlstrip_module_old.cpp"
+#include "htmlstrip_module_new.cpp"
 
 #endif

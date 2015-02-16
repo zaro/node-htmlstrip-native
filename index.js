@@ -7,49 +7,74 @@ try {
 
 
 module.exports.html_strip = function(html,options){
+	var input;
 	if (typeof html == 'string'){
-		html = new Buffer(html,'utf-16le');
+		input = new Buffer(html,'utf-16le');
+	} else if (html instanceof Buffer){
+		input = html;
+	} else {
+		input = new Buffer(html.toString(),'utf-16le');
 	}
-	
-	var buf = binding.html_strip(html, html.length, options);
+
+	var buf = binding.html_strip(input, input.length, options);
 	return buf.toString('utf-16le',0,buf._charsWritten*2);
 }
 
 module.exports.html_strip_with_hints = function(html,options){
+	var input;
 	if (typeof html == 'string'){
-		html = new Buffer(html,'utf-16le');
+		input = new Buffer(html,'utf-16le');
+	} else if (html instanceof Buffer){
+		input = html;
+	} else {
+		input = new Buffer(html.toString(),'utf-16le');
 	}
-	
-	var buf = binding.html_strip(html, html.length, options);
+
+	var buf = binding.html_strip(input, input.length, options);
 	return {
 		text: buf.toString('utf-16le',0,buf._charsWritten*2),
 		hints: buf.tag_hints
 	};
 }
 
-module.exports.html_entities_decode = function(string){
-	if (typeof string == 'string'){
-		string = new Buffer(string,'utf-16le');
+module.exports.html_entities_decode = function(html){
+	var input;
+	if (typeof html == 'string'){
+		input = new Buffer(html,'utf-16le');
+	} else if (html instanceof Buffer){
+		input = html;
+	} else {
+		input = new Buffer(html.toString(),'utf-16le');
 	}
-	
-	var buf = binding.html_entities_decode(string, string.length);
+
+	var buf = binding.html_entities_decode(input, input.length);
 	return buf.toString('utf-16le',0,buf._charsWritten*2);
 }
 
-module.exports.accented_chars_norm = function(string){
-	if (typeof string == 'string'){
-		string = new Buffer(string,'utf-16le');
+module.exports.accented_chars_norm = function(html){
+	var input;
+	if (typeof html == 'string'){
+		input = new Buffer(html,'utf-16le');
+	} else if (html instanceof Buffer){
+		input = html;
+	} else {
+		input = new Buffer(html.toString(),'utf-16le');
 	}
-	
-	var buf = binding.accented_chars_norm(string, string.length);
+
+	var buf = binding.accented_chars_norm(input, input.length);
 	return buf.toString('utf-16le',0,buf._charsWritten*2);
 }
 
-module.exports.accented_chars_strip = function(string){
-	if (typeof string == 'string'){
-		string = new Buffer(string,'utf-16le');
+module.exports.accented_chars_strip = function(html){
+	var input;
+	if (typeof html == 'string'){
+		input = new Buffer(html,'utf-16le');
+	} else if (html instanceof Buffer){
+		input = html;
+	} else {
+		input = new Buffer(html.toString(),'utf-16le');
 	}
-	
-	var buf = binding.accented_chars_strip(string, string.length);
+
+	var buf = binding.accented_chars_strip(input, input.length);
 	return buf.toString('utf-16le',0,buf._charsWritten*2);
 }

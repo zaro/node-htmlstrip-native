@@ -10,9 +10,11 @@ var strings = {
   "Begin <img src=\"some_url\" alt='single> End" :'Begin  single End'
 };
 
+console.log("TEST tag stripping")
 for(var i in strings){
   var converted = hs.html_strip(i, {include_attributes:{'alt':true}});
   var result = (strings[i] == converted);
+  //console.log("done .......");
   if(!result){
     console.log(
       "'" + i + "' : '" + strings[i] + "' ? " +

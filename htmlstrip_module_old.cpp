@@ -62,7 +62,7 @@ Handle<Value> HtmlStripFunc(const Arguments& args) {
       initOptions( args[2].As<Object>(), opts );
     }
 
-    return scope.Close( HtmlStrip(inBuf, inBufSize, opts) );
+    return scope.Close( HtmlStrip(inBuf, inBufSize, opts, NULL) );
 }
 
 Handle<Value> HtmlEntitiesDecodeFunc(const Arguments& args) {
@@ -76,7 +76,7 @@ Handle<Value> HtmlEntitiesDecodeFunc(const Arguments& args) {
       inBufSize = args[1]->Uint32Value();
     }
 
-    return scope.Close( HtmlEntitiesDecode(inBuf, inBufSize) );
+    return scope.Close( HtmlEntitiesDecode(inBuf, inBufSize, NULL) );
 }
 
 Handle<Value> AccentedCharsNormalizeFunc(const Arguments& args) {
@@ -90,7 +90,7 @@ Handle<Value> AccentedCharsNormalizeFunc(const Arguments& args) {
       inBufSize = args[1]->Uint32Value();
     }
 
-    return scope.Close( AccentedCharsNormalize(inBuf, inBufSize) );
+    return scope.Close( AccentedCharsNormalize(inBuf, inBufSize, NULL) );
 }
 
 Handle<Value> AccentedCharsStripFunc(const Arguments& args) {
@@ -104,7 +104,7 @@ Handle<Value> AccentedCharsStripFunc(const Arguments& args) {
       inBufSize = args[1]->Uint32Value();
     }
 
-    return scope.Close( AccentedCharsStrip(inBuf, inBufSize) );
+    return scope.Close( AccentedCharsStrip(inBuf, inBufSize, NULL) );
 }
 
 void RegisterModule(Handle<Object> target) {

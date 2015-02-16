@@ -1,7 +1,7 @@
 {
 	"name" : "htmlstrip-native",
 	"version": "0.0.6",
-	"description" : "Strip html tags with easy and efficiency",
+	"description" : "Strip html tags with ease and efficiency",
 	"author" : "Svetlozar Argirov <zarrro@gmail.com>",
 	"keywords" : [ "html", "strip", "tag" ,"entities"],
 	"main" : "index.js",
@@ -12,6 +12,6 @@
 	"dependencies": {
 	},
 	"scripts": {
-		"test" : "node test/test_entities.js"
+		"test" : "test/test.sh"
 	}
 }

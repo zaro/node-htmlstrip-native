@@ -1,6 +1,6 @@
 {
 	"name" : "htmlstrip-native",
-	"version": "0.0.6",
+	"version": "0.1.0",
 	"description" : "Strip html tags with ease and efficiency",
 	"author" : "Svetlozar Argirov <zarrro@gmail.com>",
 	"keywords" : [ "html", "strip", "tag" ,"entities"],

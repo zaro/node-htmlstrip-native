@@ -58,7 +58,7 @@ Handle<Value> HtmlStripFunc(const Arguments& args) {
 
     HtmlStripOptions opts;
     // Check if we have any options passed
-    if(args.Length() >= 3){
+    if(args.Length() >= 3 && !args[2].IsEmpty() && args[2]->IsObject()){
       initOptions( args[2].As<Object>(), opts );
     }
 

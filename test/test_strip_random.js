@@ -37,7 +37,7 @@ function generateTestString(length) {
 console.log("TEST random tag stripping")
 for(var i=0; i < 10000; ++i){
   var t = generateTestString(100);
-  var converted = hs.html_strip(t.str, {});
+  var converted = hs.html_strip(t.str);
   var result = (t.exp == converted);
   if(!result){
     console.log(

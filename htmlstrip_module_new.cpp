@@ -3,6 +3,8 @@
 
 #include "htmlstrip.hpp"
 
+#include <iostream>
+
 using namespace v8;
 
 Persistent<Value> chars_written_sym;
@@ -36,8 +38,8 @@ void HtmlStripFunc(const FunctionCallbackInfo<Value>& args) {
 
   HtmlStripOptions opts;
   // Check if we have any options passed
-  if(args.Length() >= 3){
-    Local<Object> optsObj = args[2].As<Object>();
+  if(args.Length() >= 3 && !args[2].IsEmpty() && args[2]->IsObject()){
+    Local<Object> optsObj = args[2]->ToObject();
     if(!optsObj.IsEmpty()){
 
       if(optsObj->Has(PERSISTENT(include_script_sym))){

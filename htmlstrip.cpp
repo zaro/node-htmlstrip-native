@@ -67,8 +67,6 @@ enum tagtype {
 		&& !isalpha(inBuf[i+7]) \
 	)
 
-#define APPEND_WS_COMPACT(b) if(*(b-1) != ' ') { *b++ = ' '; };
-
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
 #endif
@@ -274,15 +272,13 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 			outBuffer->GetIndexedPropertiesExternalArrayData());
 		uint16_t* outBuf = const_cast<uint16_t*>(outBufBegin);
 
-		if(opts.compact_whitespace){
-		// Insert one space at the begginng so the lookback doesn't fail
-			*outBuf++ = ' ';
-		}
 		// Baby take off your tags , real fast :)
 		size_t numInChars = inBufSize/2;
 		int state = IN_TEXT;
 		int tagType = TAG_ANY;
 		uint16_t openAttribute = 0;
+
+		#define APPEND_WS_COMPACT() if( ((outBuf - outBufBegin)>0)  && *(outBuf-1) != ' ') { *outBuf++ = ' '; };
 
 		#define START_TAG(offset,t) 	tagPoints.push_back( TagPoint(offset + (outBuf - outBufBegin - 1),t) );
 		START_TAG(1,TAG_ANY);
@@ -324,7 +320,7 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 						continue;
 					}
 					if(opts.compact_whitespace){
-						APPEND_WS_COMPACT(outBuf);
+						APPEND_WS_COMPACT();
 					}else {
 						*outBuf++ = ' ';
 					}
@@ -418,7 +414,7 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 				case 0x205f:
 				case 0x3000:
 					if(opts.compact_whitespace){
-						APPEND_WS_COMPACT(outBuf);
+						APPEND_WS_COMPACT();
 						continue;
 					}
 					break;
@@ -441,7 +437,7 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 						START_TAG(0,TAG_ANY);
 						openAttribute = 0;
 						if(opts.compact_whitespace){
-							APPEND_WS_COMPACT(outBuf);
+							APPEND_WS_COMPACT();
 						}else {
 							*outBuf++ = ' ';
 						}
@@ -458,6 +454,9 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 		// Append a tag for closing the previsous one
 		START_TAG(1,TAG_HINT_END);
 		#undef START_TAG
+
+		#undef APPEND_WS_COMPACT
+
 		// Set the number of characters written
 		outBuffer->Set(PERSISTENT(chars_written_sym), NEW_INTEGER(outBuf - outBufBegin) );
 		// set the extra tag info

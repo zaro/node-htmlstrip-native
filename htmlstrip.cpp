@@ -286,7 +286,9 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 		for(size_t i=0; i<numInChars; ++i){
 			switch(inBuf[i]){
 				case '<':
-					if(state == IN_SCRIPT || state == IN_STYLE){
+					if (state == IN_COMMENT){
+						continue;
+					} else if(state == IN_SCRIPT || state == IN_STYLE){
 						if( state == IN_SCRIPT && IS_SCRIPT_CLOSE(inBuf,i,numInChars) ){
 							state = IN_TEXT;
 							i+=7;
@@ -326,7 +328,7 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 					}
 					continue;
 				case '>':
-					if(state == IN_SCRIPT || state == IN_STYLE){
+					if(state == IN_SCRIPT || state == IN_STYLE || (state == IN_ATTRIBUTE && openAttribute !=0)){
 						break;
 					}else  if(state == IN_COMMENT){
 						if(inBuf[i-1] == '-' && inBuf[i-2] == '-' ){
@@ -350,39 +352,55 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 						}
 					}break;
 				case '=':
-					if( state == IN_TAG && opts.include_attributes ){
+					if( state == IN_TAG ){
 						bool includeThisAttr = opts.include_all_attributes;
+						
+						if(opts.include_attributes) {
+							if( !opts.include_all_attributes ) {
+								// construct the attribute name
+								uint16_t attrName[256];
+								int k , j = i;
+								for(--j; isspace(inBuf[j]) && j >= 0 ; --j);
+								// This is not very strict check for attribute name
+								for(;
+										inBuf[j] > ' ' &&
+										inBuf[j] != '"' && inBuf[j] != '\'' &&
+										inBuf[j] != '>' && inBuf[j] != '/'  &&
+										inBuf[j] != '=' &&
+										j >= 0
+										; --j);
+								++j;
+								for(k=0; !isspace(inBuf[j]) && inBuf[j] != '=' && (k < 255); ++k, ++j){
+									attrName[k] = inBuf[j];
+								}
+								attrName[k] = 0;
 
-						if( !opts.include_all_attributes ) {
-							// construct the attribute name
-							uint16_t attrName[256];
-							int k , j = i;
-							for(--j; isspace(inBuf[j]) && j >= 0 ; --j);
-							// This is not very strict check for attribute name
-							for(;
-									inBuf[j] > ' ' &&
-									inBuf[j] != '"' && inBuf[j] != '\'' &&
-									inBuf[j] != '>' && inBuf[j] != '/'  &&
-									inBuf[j] != '=' &&
-									j >= 0
-									; --j);
-							++j;
-							for(k=0; !isspace(inBuf[j]) && inBuf[j] != '=' && (k < 255); ++k, ++j){
-								attrName[k] = inBuf[j];
+								// set found flag
+								Local< String > attributeName = NEW_STRING_BUF(attrName, k);
+								includeThisAttr = opts.includeAttributesMap->Has(attributeName);
 							}
-							attrName[k] = 0;
-
-							// set found flag
-							Local< String > attributeName = NEW_STRING_BUF(attrName, k);
-							includeThisAttr = opts.includeAttributesMap->Has(attributeName);
+							if ( includeThisAttr ){
+								state = IN_ATTRIBUTE;
+								START_TAG(0,TAG_ATTRIBUTE);
+								for(++i; isspace(inBuf[i]); ++i);
+								if( inBuf[i] == '"' || inBuf[i] == '\'') {
+									openAttribute = inBuf[i];
+									++i;
+								}
+							}
 						}
-						if ( includeThisAttr ){
-							state = IN_ATTRIBUTE;
-							START_TAG(0,TAG_ATTRIBUTE);
-							for(++i; isspace(inBuf[i]); ++i);
-							if( inBuf[i] == '"' || inBuf[i] == '\'') {
-								openAttribute = inBuf[i];
-								++i;
+						
+						if( !includeThisAttr ){
+							// If attribute not included, skip its value if quoted as it may contain anything including "<",">"
+							int j = i;
+							for(++j; isspace(inBuf[j]) && inBuf[j] ; ++j);
+							
+							if(inBuf[j] == '"' || inBuf[j] == '\'') {
+								// Skip till the end of the attribute value
+								uint16_t endVal = inBuf[j];
+								for(++j; inBuf[j] != endVal ; ++j){
+								}
+								i = j;
 							}
 						}
 					}break;

@@ -7,7 +7,7 @@ var strings = {
   'Begin <img src="some_url" alt="This should be \'in\' the output"> End' : "Begin  This should be 'in' the output  End",
   'Begin <img src="some_url" alt=OnlyThis should be in the output> End': 'Begin  OnlyThis  End',
   "Begin <img src=\"some_url\" alt='single\"_\"quoted'> End": 'Begin  single"_"quoted  End',
-  "Begin <img src=\"some_url\" alt='single> End" :'Begin  single End'
+  "Begin <img src=\"some_url\" alt='single> End" :'Begin  single> End' // here the whole value of alt till then end should be included
 };
 
 console.log("TEST tag stripping")

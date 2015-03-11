@@ -6,13 +6,17 @@ function getRandomChar() {
 }
 
 function generateTestString(length) {
-  var str="", exp="", inTag=false, inTagNext=false;
+  var str="", exp="", inTag=false, inTagNext=false, inAttrVal=false, prev;
   while(length) {
     var c = getRandomChar();
     var e = c;
     if(c == '&'){
       c += 'amp;';
       e = '&';
+    }
+    if( c == '=') {
+			// don't generate attirbute values for now
+      if(inTag) continue;
     }
     if( c == '<') {
       if(inTag) continue;
@@ -28,6 +32,7 @@ function generateTestString(length) {
       exp += e;
     }
     inTag = inTagNext;
+		prev = c;
     length--;
   }
   return { str: str, exp: exp };
@@ -35,7 +40,7 @@ function generateTestString(length) {
 
 
 console.log("TEST random tag stripping")
-for(var i=0; i < 10000; ++i){
+for(var i=0; i < 100000; ++i){
   var t = generateTestString(100);
   var converted = hs.html_strip(t.str);
   var result = (t.exp == converted);

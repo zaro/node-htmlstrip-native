@@ -268,8 +268,8 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 		// create extra info array
 		std::vector<TagPoint> tagPoints;
 
-		const uint16_t* outBufBegin = static_cast<uint16_t*>(
-			outBuffer->GetIndexedPropertiesExternalArrayData());
+		uint16_t* outBufBegin;
+		GetBufferArrayData(outBuffer, outBufBegin);
 		uint16_t* outBuf = const_cast<uint16_t*>(outBufBegin);
 
 		// Baby take off your tags , real fast :)
@@ -354,7 +354,7 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 				case '=':
 					if( state == IN_TAG ){
 						bool includeThisAttr = opts.include_all_attributes;
-						
+
 						if(opts.include_attributes) {
 							if( !opts.include_all_attributes ) {
 								// construct the attribute name
@@ -389,12 +389,12 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 								}
 							}
 						}
-						
+
 						if( !includeThisAttr ){
 							// If attribute not included, skip its value if quoted as it may contain anything including "<",">"
 							int j = i;
 							for(++j; isspace(inBuf[j]) && inBuf[j] ; ++j);
-							
+
 							if(inBuf[j] == '"' || inBuf[j] == '\'') {
 								// Skip till the end of the attribute value
 								uint16_t endVal = inBuf[j];
@@ -529,8 +529,9 @@ Local<Value> HtmlEntitiesDecode(uint16_t* inBuf, size_t inBufSize, v8::Isolate* 
 	  Local<Object> outBuffer = b->NewInstance(1, argv);
 
 
-		uint16_t* outBuf = static_cast<uint16_t*>(
-			outBuffer->GetIndexedPropertiesExternalArrayData());
+		uint16_t* outBuf;
+		GetBufferArrayData(outBuffer, outBuf);
+		uint16_t* outBufBegin = outBuf;
 
 		size_t numInChars = inBufSize/2;
 		for(size_t i=0; i<numInChars; ++i){
@@ -546,8 +547,7 @@ Local<Value> HtmlEntitiesDecode(uint16_t* inBuf, size_t inBufSize, v8::Isolate* 
 		}
 		// Set the number of characters written
 		outBuffer->Set(PERSISTENT(chars_written_sym),
-			NEW_INTEGER(outBuf - static_cast<uint16_t*>(
-				outBuffer->GetIndexedPropertiesExternalArrayData()))
+			NEW_INTEGER(outBuf - outBufBegin)
 		);
 
 		RETURN(outBuffer);
@@ -577,8 +577,9 @@ Local<Value> AccentedCharsNormalize(uint16_t* inBuf, size_t inBufSize, v8::Isola
 	  Local<Object> outBuffer = b->NewInstance(1, argv);
 
 
-		uint16_t* outBuf = static_cast<uint16_t*>(
-			outBuffer->GetIndexedPropertiesExternalArrayData());
+		uint16_t* outBuf;
+		GetBufferArrayData(outBuffer, outBuf);
+		uint16_t* outBufBegin = outBuf;
 
 		size_t numInChars = inBufSize/2;
 		for(size_t i=0; i<numInChars; ++i){
@@ -589,8 +590,7 @@ Local<Value> AccentedCharsNormalize(uint16_t* inBuf, size_t inBufSize, v8::Isola
 		}
 		// Set the number of characters written
 		outBuffer->Set(PERSISTENT(chars_written_sym),
-			NEW_INTEGER(outBuf - static_cast<uint16_t*>(
-				outBuffer->GetIndexedPropertiesExternalArrayData()))
+			NEW_INTEGER(outBuf - outBufBegin)
 		);
 
 		RETURN(outBuffer);
@@ -620,8 +620,9 @@ Local<Value> AccentedCharsStrip(uint16_t* inBuf, size_t inBufSize, v8::Isolate* 
 	  Local<Object> outBuffer = b->NewInstance(1, argv);
 
 
-		uint16_t* outBuf = static_cast<uint16_t*>(
-			outBuffer->GetIndexedPropertiesExternalArrayData());
+		uint16_t* outBuf ;
+		GetBufferArrayData(outBuffer, outBuf);
+		uint16_t* outBufBegin = outBuf;
 
 		size_t numInChars = inBufSize/2;
 		for(size_t i=0; i<numInChars; ++i){
@@ -632,8 +633,7 @@ Local<Value> AccentedCharsStrip(uint16_t* inBuf, size_t inBufSize, v8::Isolate* 
 		}
 		// Set the number of characters written
 		outBuffer->Set(PERSISTENT(chars_written_sym),
-			NEW_INTEGER(outBuf - static_cast<uint16_t*>(
-				outBuffer->GetIndexedPropertiesExternalArrayData()))
+			NEW_INTEGER(outBuf - outBufBegin)
 		);
 
 		RETURN(outBuffer);

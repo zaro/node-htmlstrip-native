@@ -24,6 +24,16 @@ Persistent<Value> taghints_type_end_sym;
 
 #define PERSISTENT(x) Local<Value>::New(isolate, x)
 
+#if (NODE_MAJOR_VERSION >= 3)
+
+#define GETBUFFERARRAYDATA(val, inBuf)  GetBufferArrayData(val->ToObject(isolate), inBuf);
+
+#else
+
+#define GETBUFFERARRAYDATA(val, inBuf)  GetBufferArrayData(val->ToObject(), inBuf);
+
+#endif
+
 void HtmlStripFunc(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
@@ -31,8 +41,7 @@ void HtmlStripFunc(const FunctionCallbackInfo<Value>& args) {
   uint16_t* inBuf = NULL;
   size_t inBufSize = 0;
   if (args.Length() >= 2) {
-    inBuf = static_cast<uint16_t*>(  // NULL on flush.
-        args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
+    GETBUFFERARRAYDATA(args[0], inBuf);
     inBufSize = args[1]->Uint32Value();
   }
 
@@ -73,8 +82,7 @@ void HtmlEntitiesDecodeFunc(const FunctionCallbackInfo<Value>& args) {
     uint16_t* inBuf = NULL;
     size_t inBufSize = 0;
     if (args.Length() >= 2) {
-      inBuf = static_cast<uint16_t*>(  // NULL on flush.
-          args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
+      GETBUFFERARRAYDATA(args[0], inBuf);
       inBufSize = args[1]->Uint32Value();
     }
 
@@ -88,8 +96,7 @@ void AccentedCharsNormalizeFunc(const FunctionCallbackInfo<Value>& args) {
     uint16_t* inBuf = NULL;
     size_t inBufSize = 0;
     if (args.Length() >= 2) {
-      inBuf = static_cast<uint16_t*>(  // NULL on flush.
-          args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
+      GETBUFFERARRAYDATA(args[0], inBuf);
       inBufSize = args[1]->Uint32Value();
     }
 
@@ -103,8 +110,7 @@ void AccentedCharsStripFunc(const FunctionCallbackInfo<Value>& args) {
     uint16_t* inBuf = NULL;
     size_t inBufSize = 0;
     if (args.Length() >= 2) {
-      inBuf = static_cast<uint16_t*>(  // NULL on flush.
-          args[0].As<Object>()->GetIndexedPropertiesExternalArrayData());
+      GETBUFFERARRAYDATA(args[0], inBuf);
       inBufSize = args[1]->Uint32Value();
     }
 

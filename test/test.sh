@@ -10,3 +10,4 @@ node $TDIR/test_strip_random.js
 node $TDIR/test_strip_compact_ws.js
 node $TDIR/test_comments.js
 node $TDIR/test_attr.js
+node $TDIR/test_attr2.js

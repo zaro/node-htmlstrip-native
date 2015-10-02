@@ -377,7 +377,10 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 
 								// set found flag
 								Local< String > attributeName = NEW_STRING_BUF(attrName, k);
-								includeThisAttr = opts.includeAttributesMap->Has(attributeName);
+								includeThisAttr =
+									opts.includeAttributesMap->Has(attributeName)
+										? opts.includeAttributesMap->Get(attributeName)->BooleanValue ()
+										: false;
 							}
 							if ( includeThisAttr ){
 								state = IN_ATTRIBUTE;

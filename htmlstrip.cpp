@@ -1,4 +1,5 @@
 #include <node.h>
+#include <nan.h>
 #include "v8.h"
 
 #include <string.h>
@@ -257,13 +258,7 @@ Local<Value> HtmlStrip(uint16_t* inBuf, size_t inBufSize, HtmlStripOptions opts,
 		HANDLE_SCOPE;
 
 		// Create output buffer
-	  Local<Object> global = GET_GLOBAL;
-	  Local<Value> bv = global->Get(NEW_STRING_SYM("Buffer"));
-	  assert(bv->IsFunction());
-	  Local<Function> b = Local<Function>::Cast(bv);
-
-	  Local<Value> argv[1] = { NEW_NUMBER(double(inBufSize)) };
-	  Local<Object> outBuffer = b->NewInstance(1, argv);
+		Local<Object> outBuffer = Nan::NewBuffer(inBufSize).ToLocalChecked();
 
 		// create extra info array
 		std::vector<TagPoint> tagPoints;
@@ -523,14 +518,7 @@ Local<Value> HtmlEntitiesDecode(uint16_t* inBuf, size_t inBufSize, v8::Isolate* 
 		HANDLE_SCOPE;
 
 		// Create output buffer
-	  Local<Object> global = GET_GLOBAL;
-	  Local<Value> bv = global->Get(NEW_STRING_SYM("Buffer"));
-	  assert(bv->IsFunction());
-	  Local<Function> b = Local<Function>::Cast(bv);
-
-	  Local<Value> argv[1] = { NEW_NUMBER(double(inBufSize)) };
-	  Local<Object> outBuffer = b->NewInstance(1, argv);
-
+		Local<Object> outBuffer = Nan::NewBuffer(inBufSize).ToLocalChecked();
 
 		uint16_t* outBuf;
 		GetBufferArrayData(outBuffer, outBuf);
@@ -569,15 +557,8 @@ Local<Value> AccentedCharsNormalize(uint16_t* inBuf, size_t inBufSize, v8::Isola
 		}
 		HANDLE_SCOPE;
 
-		// Create output buffer
-	  Local<Object> global = GET_GLOBAL;
-	  Local<Value> bv = global->Get(NEW_STRING_SYM("Buffer"));
-	  assert(bv->IsFunction());
-	  Local<Function> b = Local<Function>::Cast(bv);
-
 		// Allocate double size buffer , as in the worst case output string will be double legnth
-	  Local<Value> argv[1] = { NEW_NUMBER(double(inBufSize * 2)) };
-	  Local<Object> outBuffer = b->NewInstance(1, argv);
+		Local<Object> outBuffer = Nan::NewBuffer(inBufSize * 2).ToLocalChecked();
 
 
 		uint16_t* outBuf;
@@ -612,15 +593,8 @@ Local<Value> AccentedCharsStrip(uint16_t* inBuf, size_t inBufSize, v8::Isolate* 
 		}
 		HANDLE_SCOPE;
 
-		// Create output buffer
-	  Local<Object> global = GET_GLOBAL;
-	  Local<Value> bv = global->Get(NEW_STRING_SYM("Buffer"));
-	  assert(bv->IsFunction());
-	  Local<Function> b = Local<Function>::Cast(bv);
-
 		// Allocate double size buffer , as in the worst case output string will be double legnth
-	  Local<Value> argv[1] = { NEW_NUMBER(double(inBufSize * 2)) };
-	  Local<Object> outBuffer = b->NewInstance(1, argv);
+	  Local<Object> outBuffer = Nan::NewBuffer(inBufSize * 2).ToLocalChecked();
 
 
 		uint16_t* outBuf ;

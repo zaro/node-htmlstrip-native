@@ -3,6 +3,9 @@
     {
       "target_name": "htmlstrip",
       "sources": [ "htmlstrip.cpp", "htmlstrip_module.cpp" ],
+      "include_dirs": [
+          "<!(node -e \"require('nan')\")"
+      ],
       "cflags": [
         #"-O0 -g3"
       ],

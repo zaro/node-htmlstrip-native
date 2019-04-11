@@ -1,17 +1,23 @@
 {
-	"name" : "htmlstrip-native",
-	"version": "0.1.4",
-	"description" : "Strip html tags with ease and efficiency",
-	"author" : "Svetlozar Argirov <zarrro@gmail.com>",
-	"keywords" : [ "html", "strip", "tag" ,"entities"],
-	"main" : "index.js",
+	"name": "htmlstrip-native",
+	"version": "0.2.0",
+	"description": "Strip html tags with ease and efficiency",
+	"author": "Svetlozar Argirov <zarrro@gmail.com>",
+	"keywords": [
+		"html",
+		"strip",
+		"tag",
+		"entities"
+	],
+	"main": "index.js",
 	"repository": {
 		"type": "git",
 		"url": "git://github.com/zaro/node-htmlstrip-native.git"
 	},
 	"dependencies": {
+		"nan": "^2.13.2"
 	},
 	"scripts": {
-		"test" : "test/test.sh"
+		"test": "test/test.sh"
 	}
 }

@@ -63,8 +63,8 @@ for(var kkk; kkk< ITERATIONS ; ++kkk){
 		if(!ok){
 			console.log('FAIL');
 			console.log('in:',ins);
-			console.log('expected:',outs, new Buffer(outs,'binary'));
-			console.log('decoded:',decoded, new Buffer(decoded,'binary'));
+			console.log('expected:',outs, Buffer.from(outs,'binary'));
+			console.log('decoded:',decoded, Buffer.from(decoded,'binary'));
 			process.exit(-1);
 		}
 	}
